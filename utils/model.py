@@ -1,58 +1,86 @@
-from transformers import AutoModel, AutoTokenizer
-import torch
 import os
+import sys
+from transformers import AutoTokenizer, AutoModel, PretrainedConfig
+from modelscope.utils.constant import Tasks
+from modelscope.pipelines import pipeline
 
-def load_chatglm_model(model_path="./models/ZhipuAI/ChatGLM-6B"):
+def load_chatglm_model(model_path="ZhipuAI/ChatGLM-6B", device="auto"):
     """
-    加载chatglm-6b模型
+    加载ChatGLM模型
+    
     Args:
-        model_path: 模型路径或模型名称
+        model_path: 模型路径，默认使用在线模型
+        device: 设备配置，默认auto自动选择
+    
+    Returns:
+        pipeline对象
     """
     try:
-        print(f"正在加载模型，路径: {model_path}")
-        # 设置设备
-        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        print(f"使用设备: {device}")
-        
-        # 加载模型和tokenizer
+        # 加载tokenizer
         tokenizer = AutoTokenizer.from_pretrained(
             model_path, 
-            trust_remote_code=True
-        )
-        model = AutoModel.from_pretrained(
-            model_path,
             trust_remote_code=True,
-            device_map='auto',
-            torch_dtype=torch.float16
-        ).eval()
+            local_files_only=True
+        )
         
-        print("模型加载成功！")
-        return model, tokenizer
+        # 加载模型
+        model = AutoModel.from_pretrained(
+            model_path, 
+            trust_remote_code=True,
+            local_files_only=True,
+            pre_seq_len=None,
+            prefix_projection=False
+        ).quantize(4).half().cuda()  # 使用半精度
+        
+        model = model.eval()
+        
+        def chat_function(inputs):
+            text = inputs['text']
+            history = inputs.get('history', [])
+            response, new_history = model.chat(tokenizer, text, history)
+            return {
+                'response': response,
+                'history': new_history
+            }
+            
+        return chat_function
+        
     except Exception as e:
-        print(f"模型加载失败: {str(e)}")
-        raise
+        import traceback
+        print(f"错误详情:\n{traceback.format_exc()}")
+        raise Exception(f"模型加载失败: {str(e)}")
 
-def generate_response_from_model(model, tokenizer, prompt, max_length=2048):
+def generate_response_from_model(pipe, text, history=None):
     """
-    使用模型生成回答
+    生成模型回答
+    
     Args:
-        model: ChatGLM模型
-        tokenizer: ChatGLM分词器
-        prompt: 输入的提示文本
-        max_length: 生成文本的最大长度
+        pipe: 模型函数
+        text: 输入文本
+        history: 对话历史，默认为None
+    
+    Returns:
+        tuple: (回答文本, 更新后的历史记录)
     """
+    if history is None:
+        history = []
+        
     try:
-        response, history = model.chat(tokenizer, prompt, history=[])
-        return response
+        inputs = {
+            'text': text,
+            'history': history
+        }
+        result = pipe(inputs)
+        
+        response = result['response']
+        new_history = result['history']
+        
+        return response, new_history
     except Exception as e:
-        print(f"生成回答时出错: {str(e)}")
-        return f"生成回答失败: {str(e)}"
+        raise Exception(f"生成回答失败: {str(e)}")
 
 if __name__ == "__main__":
     # 测试代码
-    try:
-        model, tokenizer = load_chatglm_model()
-        response = generate_response_from_model(model, tokenizer, "你好")
-        print(f"测试回答：{response}")
-    except Exception as e:
-        print(f"测试失败: {str(e)}")
+    pipe = load_chatglm_model()
+    response, history = generate_response_from_model(pipe, "你好")
+    print(f"测试回答：{response}")
