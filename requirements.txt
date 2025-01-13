@@ -1,0 +1,10 @@
+torch>=2.0.0
+transformers==4.27.1
+modelscope>=1.9.5
+protobuf
+cpm_kernels
+sentencepiece 
+pypdf==3.17.1
+jieba==0.42.1
+pandas==1.5.3
+tqdm==4.66.1 
