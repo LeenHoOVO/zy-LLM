@@ -1,0 +1,406 @@
+#:kivy 2.3.1
+#:import dp kivy.metrics.dp
+#:import ChatInput ui.widgets.chat_input.ChatInput
+#:import Window kivy.core.window.Window
+#:import Animation kivy.animation.Animation
+#:import HistoryItem ui.widgets.history_item.HistoryItem
+#:import CustomTextInput ui.widgets.custom_input.CustomTextInput
+#:import Spinner kivy.uix.spinner.Spinner
+#:import platform kivy.utils.platform
+#:import Sidebar ui.widgets.sidebar.Sidebar
+#:set base_width dp(1280) if not platform in ('android', 'ios') else dp(400)
+#:set base_height dp(720) if not platform in ('android', 'ios') else dp(800)
+#:set base_font_size dp(18) if not platform in ('android', 'ios') else dp(14)
+#:set scale_width Window.width / float(base_width)
+#:set scale_height Window.height / float(base_height)
+#:set scale min(scale_width, scale_height) * (1.3 if not platform in ('android', 'ios') else 1.0)
+
+# 字体大小基准
+#:set font_scale scale if scale > 0.8 else 0.8
+
+# 修改默认字体设置
+<Label>:
+    font_name: 'SimSun'  # 使用宋体
+    font_size: base_font_size * font_scale
+
+<MenuButton@Button>:
+    size_hint: None, None
+    size: dp(40), dp(40)
+    background_normal: ''
+    background_color: 0, 0, 0, 0
+    pos_hint: {'center_y': 0.5}
+    _angle: 0  # 用于菜单按钮动画
+    
+    canvas:
+        PushMatrix
+        Rotate:
+            angle: self._angle
+            origin: self.center
+        Color:
+            rgba: 0.3, 0.3, 0.3, 1
+        Line:
+            points: [self.x + dp(10), self.center_y - dp(6), self.x + dp(30), self.center_y - dp(6)]
+            width: 2
+            cap: 'round'
+        Line:
+            points: [self.x + dp(10), self.center_y, self.x + dp(30), self.center_y]
+            width: 2
+            cap: 'round'
+        Line:
+            points: [self.x + dp(10), self.center_y + dp(6), self.x + dp(30), self.center_y + dp(6)]
+            width: 2
+            cap: 'round'
+        PopMatrix
+
+<NavBar@BoxLayout>:
+    size_hint_y: None
+    height: dp(80) * scale
+    padding: [dp(25) * scale, 0]
+    
+    MenuButton:
+        id: menu_button
+        on_press: 
+            app.root.toggle_sidebar()
+            Animation(_angle=180 if not app.root.ids.sidebar.is_open else 0, duration=0.3, t='out_quad').start(self)
+    
+    Label:
+        text: '周易智能问答'
+        color: 0.2, 0.2, 0.2, 1
+        font_size: dp(22) * scale  # 增大标题字体
+        bold: True
+        halign: 'center'
+        valign: 'middle'
+
+<Sidebar>:
+    history_list: history_list
+    opacity: 0 if self.width < dp(10) else 1
+    width: self._current_width if self._current_width is not None else dp(0)
+    
+    canvas.before:
+        Color:
+            rgba: 0.98, 0.98, 0.98, 1
+        Rectangle:
+            pos: self.pos
+            size: self.size
+        Color:
+            rgba: 0, 0, 0, 0.15
+        Rectangle:
+            pos: self.right - dp(4), self.y
+            size: dp(4), self.height
+    
+    BoxLayout:
+        orientation: 'vertical'
+        padding: [dp(20), dp(15)]
+        spacing: dp(15)
+        
+        Button:
+            size_hint_y: None
+            height: dp(45)
+            text: '新对话'
+            background_normal: ''
+            background_color: 0.3, 0.7, 1, 1
+            color: 1, 1, 1, 1
+            font_name: 'SimSun'
+            font_size: dp(16)
+            on_release: app.root.start_new_conversation()
+        
+        Label:
+            size_hint_y: None
+            height: dp(30)
+            text: '历史对话'
+            color: 0.3, 0.3, 0.3, 1
+            font_size: dp(15)
+            text_size: self.size
+            halign: 'left'
+            valign: 'middle'
+            padding: [dp(5), 0]
+        
+        BoxLayout:
+            orientation: 'vertical'
+            
+            ScrollView:
+                id: history_scroll
+                do_scroll_x: False
+                bar_width: dp(4)
+                bar_color: [0.5, 0.5, 0.5, 0.3]
+                bar_inactive_color: [0.5, 0.5, 0.5, 0]
+                
+                GridLayout:
+                    id: history_list
+                    cols: 1
+                    size_hint_y: None
+                    height: self.minimum_height
+                    spacing: dp(8)
+                    padding: [0, dp(5)]
+
+#:include ui/styles/history_item.kv
+
+<MessageContainer>:
+    size_hint_y: None
+    height: self.minimum_height
+    padding: [dp(10), dp(2)]
+
+<ChatBubble>:
+    orientation: 'vertical'
+    size_hint_y: None
+    height: content.height
+    padding: [dp(15), dp(10)]
+    
+    BoxLayout:
+        id: content
+        size_hint_y: None
+        height: msg_label.height + dp(20)
+        
+        Label:
+            id: msg_label
+            text: root.formatted_text if hasattr(root, 'formatted_text') else root.text
+            color: root.text_color
+            font_name: 'SimSun'
+            font_size: dp(18)  # 基础字体大小
+            size_hint_y: None
+            height: self.texture_size[1]
+            text_size: root.width - dp(40), None
+            padding: [dp(15), dp(10)]
+            line_height: 1.5
+            markup: True  # 启用标记语言支持
+
+<TimeLabel@Label>:
+    size_hint: None, None
+    size: self.texture_size
+    font_size: dp(14)
+    height: dp(20)
+    color: 0.6, 0.6, 0.6, 1
+
+<UserMessage@MessageContainer>:
+    Label:
+        id: time_label
+        text: root.parent.timestamp if root.parent else ''
+        size_hint: None, None
+        size: self.texture_size
+        font_size: dp(14)
+        height: dp(20)
+        color: 0.6, 0.6, 0.6, 1
+        pos_hint: {'right': 0.98}
+
+    UserBubble:
+        text: root.parent.text if root.parent else ''
+
+<AIMessage@MessageContainer>:
+    Label:
+        id: time_label
+        text: root.parent.timestamp if root.parent else ''
+        size_hint: None, None
+        size: self.texture_size
+        font_size: dp(14)
+        height: dp(20)
+        color: 0.6, 0.6, 0.6, 1
+        pos_hint: {'x': 0.02}
+
+    AIChatBubble:
+        text: root.parent.text if root.parent else ''
+
+<UserBubble>:
+    bubble_color: 0.85, 0.85, 0.85, 1  # 灰色背景
+    text_color: 0.1, 0.1, 0.1, 1  # 深色文字
+    canvas.before:
+        Color:
+            rgba: self.bubble_color
+        RoundedRectangle:
+            pos: self.pos
+            size: self.size
+            radius: [dp(15)]
+
+<AIChatBubble>:
+    bubble_color: 0.3, 0.7, 1, 1  # 蓝色背景
+    text_color: 1, 1, 1, 1  # 白色文字
+    canvas.before:
+        Color:
+            rgba: self.bubble_color
+        RoundedRectangle:
+            pos: self.pos
+            size: self.size
+            radius: [dp(15)]
+
+<LoadingBubble>:
+    size_hint: None, None
+    size: dp(45), dp(25)
+    pos_hint: {'x': 0.02}
+    
+    canvas:
+        Color:
+            rgba: 0.0, 0.6, 1, 1
+        Ellipse:
+            pos: self.center_x - dp(12), self.center_y - dp(3)
+            size: dp(5), dp(5)
+        Ellipse:
+            pos: self.center_x, self.center_y - dp(3)
+            size: dp(5), dp(5)
+        Ellipse:
+            pos: self.center_x + dp(12), self.center_y - dp(3)
+            size: dp(5), dp(5)
+
+<SendButton@Button>:
+    text: '' if platform in ('android', 'ios') else '发送'
+    background_color: [0.3, 0.7, 1, 1] if self.enabled else [0.9, 0.9, 0.9, 1]
+    color: (1, 1, 1, 1) if self.enabled else (0.7, 0.7, 0.7, 1)
+    font_size: base_font_size * font_scale
+    bold: True
+    enabled: False
+    canvas.before:
+        Color:
+            rgba: self.background_color
+        RoundedRectangle:
+            pos: self.pos
+            size: self.size
+            radius: [dp(10)]
+    
+    # 添加涟漪效果
+    on_press: 
+        if self.enabled: Animation(background_color=[0.2, 0.6, 0.9, 1], duration=0.1).start(self)
+    on_release: 
+        if self.enabled: Animation(background_color=[0.3, 0.7, 1, 1], duration=0.2).start(self)
+
+<ChatScreen>:
+    canvas.before:
+        Color:
+            rgba: 0.95, 0.95, 0.95, 1  # 浅灰色背景
+        Rectangle:
+            pos: self.pos
+            size: self.size
+    
+    BoxLayout:
+        orientation: 'horizontal'
+        spacing: 0
+        
+        Sidebar:
+            id: sidebar
+        
+        BoxLayout:
+            orientation: 'vertical'
+            spacing: 0
+            size_hint_x: 1
+            canvas.before:
+                Color:
+                    rgba: 1, 1, 1, 1  # 白色背景
+                Rectangle:
+                    pos: self.pos
+                    size: self.size
+            
+            NavBar:
+                id: navbar
+                canvas.before:
+                    Color:
+                        rgba: 1, 1, 1, 1
+                    Rectangle:
+                        pos: self.pos
+                        size: self.size
+                    Color:
+                        rgba: 0.9, 0.9, 0.9, 1
+                    Line:
+                        points: [self.x, self.y, self.x + self.width, self.y]
+                        width: 1
+            
+            BoxLayout:
+                orientation: 'vertical'
+                size_hint_y: 1
+                padding: [dp(20), dp(10)]
+                
+                ScrollView:
+                    id: chat_scroll
+                    do_scroll_x: False
+                    bar_width: dp(4)
+                    bar_color: [0.5, 0.5, 0.5, 0.3]
+                    bar_inactive_color: [0.5, 0.5, 0.5, 0]
+                    effect_cls: 'ScrollEffect'  # 使用更简单的滚动效果
+                    scroll_type: ['bars', 'content']
+                    
+                    GridLayout:
+                        id: chat_history
+                        cols: 1
+                        size_hint_y: None
+                        height: self.minimum_height
+                        spacing: dp(15)
+                        padding: [0, dp(10)]
+                        # 添加缓存
+                        cache: True
+                        rows_minimum: {}
+            
+            BoxLayout:
+                id: input_area
+                size_hint_y: None
+                height: dp(100)
+                padding: [dp(20), dp(15)]
+                spacing: dp(15)
+                canvas.before:
+                    Color:
+                        rgba: 0.97, 0.97, 0.97, 1
+                    Rectangle:
+                        pos: self.pos
+                        size: self.size
+                    Color:
+                        rgba: 0.9, 0.9, 0.9, 1
+                    Line:
+                        points: [self.x, self.top, self.right, self.top]
+                        width: 1
+                
+                CustomTextInput:
+                    id: chat_input
+                    size_hint_x: 0.85
+                    hint_text: '输入消息...'
+                    multiline: False
+                    on_text: send_button.enabled = len(self.text.strip()) > 0
+                    on_text_validate: root._handle_send_message(None, self.text) if self.text.strip() else None
+                
+                SendButton:
+                    id: send_button
+                    size_hint_x: 0.15
+                    disabled: not self.enabled
+                    on_release: root._handle_send_message(None, chat_input.text) if self.enabled else None
+
+<ConfirmPopup@Popup>:
+    title_size: dp(18) * font_scale
+    title_align: 'center'
+    title_font: 'SimSun'
+    separator_height: dp(1)
+    separator_color: 0.9, 0.9, 0.9, 1
+    background: ''
+    background_color: 1, 1, 1, 1
+    
+    canvas.before:
+        Color:
+            rgba: 0.98, 0.98, 0.98, 1
+        RoundedRectangle:
+            pos: self.pos
+            size: self.size
+            radius: [dp(10)]
+        # 添加阴影效果
+        Color:
+            rgba: 0, 0, 0, 0.1
+        RoundedRectangle:
+            pos: self.x + dp(2), self.y - dp(2)
+            size: self.size
+            radius: [dp(10)]
+
+<ConfirmButton@Button>:
+    font_name: 'SimSun'
+    background_normal: ''
+    background_color: 1, 1, 1, 1
+    color: 1, 1, 1, 1
+    size_hint_y: None
+    height: dp(40)
+    font_size: dp(16)
+    canvas.before:
+        Color:
+            rgba: self.background_color
+        RoundedRectangle:
+            pos: self.pos
+            size: self.size
+            radius: [dp(5)]
+
+<LoadingSpinner>:
+    # 移除原来的背景样式
+    size_hint: None, None
+    size: dp(30), dp(30)  # 减小整体大小
+    pos_hint: {'center_x': 0.5, 'center_y': 0.5}
+
+#:set SIDEBAR_COLLAPSED_WIDTH dp(0)

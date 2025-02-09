@@ -1,0 +1,60 @@
+<HistoryItem>:
+    orientation: 'horizontal'
+    size_hint_y: None
+    height: dp(65)
+    padding: [dp(15), dp(8)]
+    spacing: dp(12)
+    canvas.before:
+        Color:
+            rgba: (0.92, 0.92, 0.92, 1) if self.state == 'down' else (0.98, 0.98, 0.98, 1)
+        RoundedRectangle:
+            pos: self.pos
+            size: self.size
+            radius: [dp(8)]
+    
+    BoxLayout:
+        orientation: 'vertical'
+        spacing: dp(6)
+        size_hint_x: 0.92
+        
+        Label:
+            text: root.text
+            color: 0.2, 0.2, 0.2, 1
+            font_size: dp(16)
+            text_size: self.width, None
+            size_hint_y: None
+            height: self.texture_size[1]
+            shorten: True
+            shorten_from: 'right'
+            halign: 'left'
+            bold: True
+        
+        Label:
+            text: root.timestamp
+            color: 0.6, 0.6, 0.6, 1
+            font_size: dp(13)
+            text_size: self.width, None
+            size_hint_y: None
+            height: self.texture_size[1]
+            halign: 'left'
+    
+    Button:
+        id: delete_btn
+        size_hint: None, None
+        size: dp(22), dp(22)
+        background_normal: ''
+        background_color: 0, 0, 0, 0
+        pos_hint: {'top': 0.85}
+        opacity: 0.7
+        
+        canvas:
+            Color:
+                rgba: 0.6, 0.6, 0.6, 1
+            Line:
+                points: [self.x + dp(6), self.y + dp(6), self.x + dp(16), self.y + dp(16)]
+                width: 1.2
+                cap: 'round'
+            Line:
+                points: [self.x + dp(6), self.y + dp(16), self.x + dp(16), self.y + dp(6)]
+                width: 1.2
+                cap: 'round' 
